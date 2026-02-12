@@ -1,8 +1,10 @@
-# Practice 2 – Python Control Flow
+# Practice-03
 
-This practice covers:
-- Boolean values and operators
-- If / Else statements
-- While and For loops
+This project contains Python examples covering:
 
-All examples are taken from W3Schools Python Tutorial.
+- Functions
+- Lambda expressions
+- Classes
+- Inheritance
+
+Each folder demonstrates specific Python concepts with simple examples.
