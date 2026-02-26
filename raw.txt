@@ -1,0 +1,10 @@
+Super Market
+Date: 26.02.2026 14:25
+
+Milk 2 x 450.00 = 900.00
+Bread 300.00
+Chocolate 500.50
+
+TOTAL: 1700.50
+Payment: CARD
+Thank you!
