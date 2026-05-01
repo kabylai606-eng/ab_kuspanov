@@ -1,264 +1,336 @@
-import pygame, sys, random, time
+import pygame
+import sys
+import random
+import time
+from pathlib import Path
 from pygame.locals import *
 
-# Initialise pygame 
-pygame.init()
+pygame.init()  # запускаем pygame
 
-# Constants 
-FPS              = 60
-SCREEN_WIDTH     = 400
-SCREEN_HEIGHT    = 600
-SPEED            = 5          # current fall speed (global, increases over time)
+# путь к папке проекта
+BASE_DIR = Path(__file__).resolve().parent
 
-ENEMY_BOOST_EVERY = 5         # enemy gets faster every N coins collected
+# путь к папке assets
+ASSETS = BASE_DIR / "assets"
 
-# Colors 
-BLACK   = (0,   0,   0)
-WHITE   = (255, 255, 255)
-RED     = (220, 50,  50)
-BLUE    = (0,   0,   255)
-GRAY    = (60,  60,  60)
+# основные настройки окна и игры
+FPS = 60
+SCREEN_WIDTH = 400
+SCREEN_HEIGHT = 600
+SPEED = 5  # начальная скорость
 
-# Coin tier colors
+ENEMY_BOOST_EVERY = 5  # ускорение после каждых 5 монет
+
+# цвета
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (220, 50, 50)
+BLUE = (0, 0, 255)
+GRAY = (60, 60, 60)
+
+# цвета монет
 BRONZE_COLOR = (205, 127, 50)
 SILVER_COLOR = (192, 192, 192)
-GOLD_COLOR   = (255, 215, 0)
+GOLD_COLOR = (255, 215, 0)
 
-# Game state 
-SCORE          = 0    # enemies dodged
-TOTAL_COINS    = 0    # total coin value collected
-ENEMY_BOOSTS   = 0    # how many times the enemy speed was boosted
+# игровые значения
+SCORE = 0          # очки за объезд врагов
+TOTAL_COINS = 0    # сумма собранных монет
+ENEMY_BOOSTS = 0   # количество ускорений
 
-# Display & clock 
+# создание окна
 DISPLAYSURF = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Racer – Practice 11")
 FramePerSec = pygame.time.Clock()
 
-# Fonts 
-font_big   = pygame.font.SysFont("Verdana", 60)
+# шрифты для текста
+font_big = pygame.font.SysFont("Verdana", 55)
 font_small = pygame.font.SysFont("Verdana", 18)
 game_over_surf = font_big.render("Game Over", True, BLACK)
 
-# Assets 
-ASSET_DIR = "assets/"
 
+# безопасная загрузка картинки
 def load_image_safe(path, fallback_size, fallback_color):
-    """Load an image, or return a solid-color rectangle if missing."""
     try:
-        return pygame.image.load(path)
+        image = pygame.image.load(path).convert_alpha()
+        return image
     except Exception:
-        surf = pygame.Surface(fallback_size)
+        # если картинка не найдена, создается цветной прямоугольник
+        surf = pygame.Surface(fallback_size, pygame.SRCALPHA)
         surf.fill(fallback_color)
         return surf
 
-background_img = load_image_safe(ASSET_DIR + "AnimatedStreet.png", (SCREEN_WIDTH, SCREEN_HEIGHT), GRAY)
-enemy_img      = load_image_safe(ASSET_DIR + "Enemy.png",           (40, 60), RED)
-player_img     = load_image_safe(ASSET_DIR + "Player.png",          (40, 60), BLUE)
+
+# загрузка фона
+background_img = load_image_safe(
+    ASSETS / "AnimatedStreet.png",
+    (SCREEN_WIDTH, SCREEN_HEIGHT),
+    GRAY
+)
+background_img = pygame.transform.scale(
+    background_img,
+    (SCREEN_WIDTH, SCREEN_HEIGHT)
+)
+
+# загрузка машины врага
+enemy_img = load_image_safe(
+    ASSETS / "Enemy.png",
+    (45, 75),
+    RED
+)
+enemy_img = pygame.transform.scale(enemy_img, (45, 75))
+
+# загрузка машины игрока
+player_img = load_image_safe(
+    ASSETS / "Player.png",
+    (50, 90),
+    BLUE
+)
+player_img = pygame.transform.scale(player_img, (50, 90))
 
 
-# Coin tiers 
-# Each tier is: (label, value, color, spawn_weight)
-# spawn_weight controls how often this tier appears (higher = more common)
+# загрузка фоновой музыки
+try:
+    pygame.mixer.init()
+    pygame.mixer.music.load(ASSETS / "background.wav")
+    pygame.mixer.music.play(-1)  # музыка играет бесконечно
+except Exception:
+    pass  # если звук не работает, игра все равно запускается
+
+
+# типы монет
 COIN_TIERS = [
     {"label": "+1", "value": 1, "color": BRONZE_COLOR, "weight": 60},
     {"label": "+3", "value": 3, "color": SILVER_COLOR, "weight": 30},
-    {"label": "+5", "value": 5, "color": GOLD_COLOR,   "weight": 10},
+    {"label": "+5", "value": 5, "color": GOLD_COLOR, "weight": 10},
 ]
 
 
+# выбор случайной монеты по весу
 def pick_random_tier():
-    """Choose a coin tier based on spawn weights (weighted random)."""
-    total  = sum(t["weight"] for t in COIN_TIERS)
-    rnd    = random.randint(1, total)
-    cumul  = 0
+    total = sum(t["weight"] for t in COIN_TIERS)
+    rnd = random.randint(1, total)
+    current = 0
+
     for tier in COIN_TIERS:
-        cumul += tier["weight"]
-        if rnd <= cumul:
+        current += tier["weight"]
+        if rnd <= current:
             return tier
-    return COIN_TIERS[0]   # fallback
+
+    return COIN_TIERS[0]
 
 
-# Sprite classes 
-
+# класс машины-врага
 class Enemy(pygame.sprite.Sprite):
-    """Enemy car that falls from the top; speed is driven by global SPEED."""
     def __init__(self):
         super().__init__()
         self.image = enemy_img
-        self.rect  = self.image.get_rect()
-        self._reset()
+        self.rect = self.image.get_rect()
+        self.reset()
 
-    def _reset(self):
-        self.rect.center = (random.randint(40, SCREEN_WIDTH - 40), 0)
+    def reset(self):
+        # враг появляется сверху в случайном месте
+        self.rect.center = (
+            random.randint(40, SCREEN_WIDTH - 40),
+            -60
+        )
 
     def move(self):
         global SCORE
+
+        # движение вниз
         self.rect.move_ip(0, SPEED)
-        if self.rect.bottom > SCREEN_HEIGHT:
+
+        # если враг вышел за экран
+        if self.rect.top > SCREEN_HEIGHT:
             SCORE += 1
-            self._reset()
+            self.reset()
 
 
+# класс машины игрока
 class Player(pygame.sprite.Sprite):
-    """Player car controlled with arrow keys."""
     def __init__(self):
         super().__init__()
         self.image = player_img
-        self.rect  = self.image.get_rect()
-        self.rect.center = (160, 520)
+        self.rect = self.image.get_rect()
+        self.rect.center = (
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT - 80
+        )
 
     def move(self):
         pressed = pygame.key.get_pressed()
-        if self.rect.left  > 0              and pressed[K_LEFT]:
+
+        # движение влево
+        if pressed[K_LEFT] and self.rect.left > 0:
             self.rect.move_ip(-5, 0)
-        if self.rect.right < SCREEN_WIDTH   and pressed[K_RIGHT]:
+
+        # движение вправо
+        if pressed[K_RIGHT] and self.rect.right < SCREEN_WIDTH:
             self.rect.move_ip(5, 0)
 
 
+# класс монеты
 class Coin(pygame.sprite.Sprite):
-    """
-    Coin with a randomly chosen tier.
-    Higher-value coins are rarer (controlled by spawn weights).
-    """
     def __init__(self):
         super().__init__()
-        self.tier  = pick_random_tier()          # Bronze / Silver / Gold
+
+        # выбираем тип монеты
+        self.tier = pick_random_tier()
         self.value = self.tier["value"]
 
-        # Draw the coin: circle + value label
+        # создаем поверхность монеты
         self.image = pygame.Surface((24, 24), pygame.SRCALPHA)
-        pygame.draw.circle(self.image, self.tier["color"], (12, 12), 11)
-        pygame.draw.circle(self.image, BLACK,               (12, 12), 11, 1)
-        lbl = pygame.font.SysFont("Verdana", 9, bold=True).render(
-            self.tier["label"], True, BLACK
-        )
-        self.image.blit(lbl, lbl.get_rect(center=(12, 12)))
+        self.draw_coin()
 
         self.rect = self.image.get_rect()
-        self._reset()
+        self.reset()
 
-    def _reset(self):
+    def draw_coin(self):
+        # очищаем монету
+        self.image.fill((0, 0, 0, 0))
+
+        # рисуем круг монеты
+        pygame.draw.circle(self.image, self.tier["color"], (12, 12), 11)
+        pygame.draw.circle(self.image, BLACK, (12, 12), 11, 1)
+
+        # пишем значение монеты
+        label = pygame.font.SysFont("Verdana", 9, bold=True).render(
+            self.tier["label"],
+            True,
+            BLACK
+        )
+        self.image.blit(label, label.get_rect(center=(12, 12)))
+
+    def reset(self):
+        # монета появляется сверху
         self.rect.center = (
             random.randint(40, SCREEN_WIDTH - 40),
-            random.randint(-400, -30)
+            random.randint(-500, -30)
         )
 
     def move(self):
+        # движение монеты вниз
         self.rect.move_ip(0, SPEED)
+
+        # если монета вышла за экран
         if self.rect.top > SCREEN_HEIGHT:
-            # Re-pick a new tier when the coin respawns
-            old_tier = self.tier
-            self.tier  = pick_random_tier()
+            self.tier = pick_random_tier()
             self.value = self.tier["value"]
-
-            if self.tier["label"] != old_tier["label"]:
-                # Redraw the coin surface for the new tier
-                self.image.fill((0, 0, 0, 0))
-                pygame.draw.circle(self.image, self.tier["color"], (12, 12), 11)
-                pygame.draw.circle(self.image, BLACK,               (12, 12), 11, 1)
-                lbl = pygame.font.SysFont("Verdana", 9, bold=True).render(
-                    self.tier["label"], True, BLACK
-                )
-                self.image.blit(lbl, lbl.get_rect(center=(12, 12)))
-
-            self._reset()
+            self.draw_coin()
+            self.reset()
 
 
-# Sprite setup 
+# создание игрока и врага
 P1 = Player()
 E1 = Enemy()
 
+# группа монет
 coins = pygame.sprite.Group()
-for _ in range(4):           # start with 4 coins on screen
+for _ in range(4):
     coins.add(Coin())
 
-enemies     = pygame.sprite.Group(E1)
+# группы спрайтов
+enemies = pygame.sprite.Group(E1)
 all_sprites = pygame.sprite.Group(P1, E1)
 
-# Custom timer events 
-INC_SPEED  = pygame.USEREVENT + 1
+# события таймера
+INC_SPEED = pygame.USEREVENT + 1
 SPAWN_COIN = pygame.USEREVENT + 2
-pygame.time.set_timer(INC_SPEED,  1000)   # speed up every second
-pygame.time.set_timer(SPAWN_COIN, 5000)   # spawn extra coin every 5 s
 
-# Main game loop 
+pygame.time.set_timer(INC_SPEED, 1000)   # каждую секунду ускорение
+pygame.time.set_timer(SPAWN_COIN, 5000)  # каждые 5 секунд новая монета
+
+
+# главный игровой цикл
 while True:
+    # обработка событий
     for event in pygame.event.get():
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
+
+        # постепенное ускорение игры
         if event.type == INC_SPEED:
-            SPEED += 0.5
+            SPEED += 0.2
+
+        # появление новой монеты
         if event.type == SPAWN_COIN:
             coins.add(Coin())
 
-    # Background 
+    # рисуем фон
     DISPLAYSURF.blit(background_img, (0, 0))
 
-    # HUD 
-    score_surf  = font_small.render(f"Score: {SCORE}", True, WHITE)
-    coins_surf  = font_small.render(f"Coins: {TOTAL_COINS}", True, GOLD_COLOR)
-    boost_surf  = font_small.render(f"Enemy boosts: {ENEMY_BOOSTS}", True, (255, 100, 100))
-    DISPLAYSURF.blit(score_surf,  (10, 10))
-    DISPLAYSURF.blit(coins_surf,  (SCREEN_WIDTH - 130, 10))
-    DISPLAYSURF.blit(boost_surf,  (SCREEN_WIDTH - 165, 34))
+    # создаем текст HUD
+    score_surf = font_small.render(f"Score: {SCORE}", True, WHITE)
+    coins_surf = font_small.render(f"Coins: {TOTAL_COINS}", True, GOLD_COLOR)
+    boost_surf = font_small.render(f"Enemy boosts: {ENEMY_BOOSTS}", True, WHITE)
 
-    # Coin-tier legend (bottom-left)
-    legend_y = SCREEN_HEIGHT - 70
-    for tier in COIN_TIERS:
-        pygame.draw.circle(DISPLAYSURF, tier["color"], (15, legend_y), 7)
-        lbl = font_small.render(f"= {tier['value']} pt{'s' if tier['value']>1 else ''}", True, WHITE)
-        DISPLAYSURF.blit(lbl, (26, legend_y - 9))
-        legend_y += 22
+    # показываем HUD
+    DISPLAYSURF.blit(score_surf, (10, 10))
+    DISPLAYSURF.blit(coins_surf, (260, 10))
+    DISPLAYSURF.blit(boost_surf, (210, 35))
 
-    # Coins: move, draw, collect 
+    # движение и отображение монет
     for coin in list(coins):
         coin.move()
         DISPLAYSURF.blit(coin.image, coin.rect)
 
+    # проверка сбора монет игроком
     collected = pygame.sprite.spritecollide(P1, coins, True)
+
     for coin in collected:
         TOTAL_COINS += coin.value
 
-        # Check if we hit the next boost threshold
+        # проверка ускорения врага
         new_boosts = TOTAL_COINS // ENEMY_BOOST_EVERY
+
         if new_boosts > ENEMY_BOOSTS:
             ENEMY_BOOSTS = new_boosts
-            SPEED += 1.5    # significant speed jump for the enemy
-            # Spawn a replacement coin
-            coins.add(Coin())
+            SPEED += 1.0
 
-    # Main sprites 
+        # добавляем новую монету вместо собранной
+        coins.add(Coin())
+
+    # движение игрока и врага
     for entity in all_sprites:
         entity.move()
         DISPLAYSURF.blit(entity.image, entity.rect)
 
-    # Collision with enemy 
+    # проверка столкновения с врагом
     if pygame.sprite.spritecollideany(P1, enemies):
         try:
-            pygame.mixer.Sound(ASSET_DIR + "crash.wav").play()
+            crash_sound = pygame.mixer.Sound(ASSETS / "crash.wav")
+            crash_sound.play()
         except Exception:
             pass
+
         time.sleep(0.5)
 
+        # экран проигрыша
         DISPLAYSURF.fill(RED)
-        DISPLAYSURF.blit(game_over_surf, (30, 200))
+        DISPLAYSURF.blit(game_over_surf, (35, 190))
 
+        # финальная статистика
         lines = [
             f"Score: {SCORE}",
             f"Coins collected: {TOTAL_COINS}",
             f"Enemy boosts earned: {ENEMY_BOOSTS}",
         ]
+
+        # вывод статистики
         for i, line in enumerate(lines):
             surf = font_small.render(line, True, WHITE)
-            DISPLAYSURF.blit(surf, (80, 290 + i * 30))
+            DISPLAYSURF.blit(surf, (75, 290 + i * 30))
 
         pygame.display.update()
-        for entity in all_sprites:
-            entity.kill()
         time.sleep(2)
+
         pygame.quit()
         sys.exit()
 
+    # обновление экрана
     pygame.display.update()
+
+    # ограничение FPS
     FramePerSec.tick(FPS)
