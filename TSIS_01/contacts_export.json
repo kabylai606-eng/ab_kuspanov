@@ -1,0 +1,131 @@
+[
+  {
+    "first_name": "David",
+    "last_name": "Brown",
+    "email": "david.brown@yahoo.com",
+    "birthday": "1978-01-30",
+    "group": "Work",
+    "phones": [
+      {
+        "phone": "+17775554002",
+        "type": "mobile"
+      },
+      {
+        "phone": "+17775554001",
+        "type": "work"
+      }
+    ],
+    "created_at": "2026-04-30 08:04:25.042288"
+  },
+  {
+    "first_name": "Eve",
+    "last_name": "Davis",
+    "email": "eve@outlook.com",
+    "birthday": "2000-06-18",
+    "group": "Friend",
+    "phones": [
+      {
+        "phone": "+17775555001",
+        "type": "mobile"
+      }
+    ],
+    "created_at": "2026-04-30 08:04:25.042288"
+  },
+  {
+    "first_name": "Bob",
+    "last_name": "Johnson",
+    "email": "bob.johnson@work.com",
+    "birthday": "1985-07-22",
+    "group": "Work",
+    "phones": [
+      {
+        "phone": "+17775552001",
+        "type": "work"
+      }
+    ],
+    "created_at": "2026-04-30 08:04:25.042288"
+  },
+  {
+    "first_name": "Yernar",
+    "last_name": "Maksot",
+    "email": "ernarlo0p@gmail.com",
+    "birthday": null,
+    "group": "Family",
+    "phones": [],
+    "created_at": "2026-04-30 09:42:54.289603"
+  },
+  {
+    "first_name": "Frank",
+    "last_name": "Miller",
+    "email": "frank@gmail.com",
+    "birthday": "1965-09-09",
+    "group": "Family",
+    "phones": [
+      {
+        "phone": "+17775556001",
+        "type": "home"
+      }
+    ],
+    "created_at": "2026-04-30 08:04:25.042288"
+  },
+  {
+    "first_name": "Henry",
+    "last_name": "Moore",
+    "email": "henry@gmail.com",
+    "birthday": "1988-12-01",
+    "group": "Other",
+    "phones": [
+      {
+        "phone": "+17775558001",
+        "type": "mobile"
+      }
+    ],
+    "created_at": "2026-04-30 08:04:25.042288"
+  },
+  {
+    "first_name": "Alice",
+    "last_name": "Smith",
+    "email": "alice@gmail.com",
+    "birthday": "1990-03-15",
+    "group": "Friend",
+    "phones": [
+      {
+        "phone": "+17775551002",
+        "type": "home"
+      },
+      {
+        "phone": "+17775551001",
+        "type": "mobile"
+      }
+    ],
+    "created_at": "2026-04-30 08:04:25.042288"
+  },
+  {
+    "first_name": "Carol",
+    "last_name": "Williams",
+    "email": "carol@gmail.com",
+    "birthday": "1993-11-05",
+    "group": "Family",
+    "phones": [
+      {
+        "phone": "+17775553001",
+        "type": "mobile"
+      }
+    ],
+    "created_at": "2026-04-30 08:04:25.042288"
+  },
+  {
+    "first_name": "Grace",
+    "last_name": "Wilson",
+    "email": "grace.w@work.com",
+    "birthday": "1995-02-28",
+    "group": "Work",
+    "phones": [
+      {
+        "phone": "+17775557001",
+        "type": "work"
+      }
+    ],
+    "created_at": "2026-04-30 08:04:25.042288"
+  }
+]
